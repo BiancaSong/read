@@ -74,6 +74,8 @@ h1{font-size:21px;line-height:1.35;margin:0 0 4px;letter-spacing:-.02em}
 }
 .passage .pg{margin:0 0 1.1em}
 .passage .pg:last-child{margin-bottom:0}
+.passage .pg.hd{margin:0 0 .4em;font-weight:700}
+.passage .pg.hd .ln{padding-left:0;text-indent:0}
 .passage .ln{display:block;word-spacing:.14em;line-height:1.6;margin:0 0 .35em;padding-left:1em;text-indent:-1em}
 .passage .w{border-radius:3px;padding:1px 0}
 .passage .w.on{background:var(--amber);box-shadow:0 0 0 3px var(--amber)}
@@ -386,7 +388,9 @@ function renderPassage(text){
   text.split(/\n+/).forEach(function(page){
     if(!page.trim()) return;
     var lines = splitLines(page);
-    html += '<div class="pg">';
+    /* 문장부호 없이 짧은 줄 = 소제목(예: "Step 1: Draw the Plan", "Marbles"). 굵게, 아래 본문과 붙여서 보여 준다. */
+    var head = !/[.!?]/.test(page) && page.trim().split(/\s+/).length <= 6;
+    html += head ? '<div class="pg hd">' : '<div class="pg">';
     lines.forEach(function(line, li){
       var words = line.split(" "), ranges = [], pos = 0, start = wi;
       html += '<span class="ln">';
@@ -396,7 +400,7 @@ function renderPassage(text){
         html += (k ? " " : "") + '<span class="w" data-i="' + (wi++) + '">' + esc(w) + "</span>";
       });
       html += "</span>";
-      segs.push({ text: line, start: start, ranges: ranges, pageEnd: li === lines.length - 1 });
+      segs.push({ text: line, start: start, ranges: ranges, pageEnd: li === lines.length - 1, head: head });
     });
     html += "</div>";
   });
@@ -624,7 +628,7 @@ function speak(){
     u.pitch = 1;
     u.onstart = function(){ if(run === speakRun && seg.ranges.length) setOn(seg.start); };
     u.onboundary = function(e){ if(run === speakRun && typeof e.charIndex === "number") highlightIn(seg, e.charIndex); };
-    u.onend = function(){ if(run === speakRun) setTimeout(next, seg.pageEnd ? 650 : 220); };
+    u.onend = function(){ if(run === speakRun) setTimeout(next, seg.head ? 400 : seg.pageEnd ? 650 : 220); };
     u.onerror = function(){ if(run !== speakRun) return; S.speakingNow = false; clearHighlight(); paintDock(); };
     speechSynthesis.speak(u);
   };
