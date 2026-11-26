@@ -428,17 +428,81 @@ var SPEEDS = [[0.7,"많이 느리게"],[0.85,"조금 느리게"],[1,"원래 속�
 function player(){ return $("modelAudio"); }
 function hasAudio(){ return !!S.localURL || (!!S.audio && !S.audioFailed); }
 
-function setupPlayer(src){
-  var A = player();
-  A.src = src;
+/* 음원주소 칸에 주소를 여러 개(띄어쓰기·줄바꿈·쉼표로 구분) 넣으면 차례대로 이어서 한 곡처럼 튼다.
+   에이드 e북 음원이 쪽마다 따로 있어서 필요하다. 시간 표시·막대·5초 뒤로는 전체 기준. */
+var PL = { list: [], idx: 0, durs: [] };
+function parseAudio(s){
+  return String(s || "").split(/[\s,]+/).filter(function(u){ return /^https?:\/\//i.test(u); });
+}
+function applyRate(A){
+  A.defaultPlaybackRate = S.rate;
   A.playbackRate = S.rate;
   if("preservesPitch" in A) A.preservesPitch = true;
   if("webkitPreservesPitch" in A) A.webkitPreservesPitch = true;
+}
+function plTotal(){
+  var s = 0;
+  for(var i=0;i<PL.durs.length;i++){ if(!PL.durs[i]) return 0; s += PL.durs[i]; }
+  return s;
+}
+function plNow(){
+  var s = 0;
+  for(var i=0;i<PL.idx;i++) s += PL.durs[i] || 0;
+  return s + (player().currentTime || 0);
+}
+function loadPart(i, t, play){
+  var A = player();
+  PL.idx = i;
+  A.src = PL.list[i];
+  applyRate(A);
+  var start = function(){
+    if(t){ try{ A.currentTime = t; }catch(e){} }
+    applyRate(A);
+    if(play) A.play().catch(function(){});
+    updateProgress();
+  };
+  if(t) A.addEventListener("loadedmetadata", start, { once:true });
+  else start();
+}
+function plSeek(g){
+  var acc = 0, n = PL.list.length;
+  for(var i=0;i<n;i++){
+    var d = PL.durs[i] || 0;
+    if(g < acc + d || i === n - 1){
+      var t = Math.max(0, Math.min(g - acc, d || g - acc));
+      if(i === PL.idx){ try{ player().currentTime = t; }catch(e){} updateProgress(); }
+      else loadPart(i, t, !player().paused);
+      return;
+    }
+    acc += d;
+  }
+}
+function setupPlayer(src){
+  var A = player();
+  PL.list = Array.isArray(src) ? src.slice() : [src];
+  PL.idx = 0;
+  PL.durs = PL.list.map(function(){ return 0; });
+  if(PL.list.length > 1){
+    PL.list.forEach(function(u, i){
+      var t = new Audio();
+      t.preload = "metadata";
+      t.onloadedmetadata = function(){ PL.durs[i] = isFinite(t.duration) ? t.duration : 0; updateProgress(); };
+      t.src = u;
+    });
+  }
+  A.src = PL.list[0];
+  applyRate(A);
   A.onplay = function(){ S.listened = true; paintDock(); };
   A.onpause = paintDock;
-  A.onended = function(){ S.listened = true; paintDock(); };
+  A.onended = function(){
+    if(PL.idx < PL.list.length - 1){ loadPart(PL.idx + 1, 0, true); return; }
+    S.listened = true; paintDock();
+  };
   A.ontimeupdate = updateProgress;
-  A.onloadedmetadata = updateProgress;
+  A.onloadedmetadata = function(){
+    if(!PL.durs[PL.idx] && isFinite(A.duration)) PL.durs[PL.idx] = A.duration;
+    updateProgress();
+  };
   A.onerror = function(){
     if(S.localURL){
       S.localURL = "";
@@ -453,21 +517,23 @@ function setupPlayer(src){
 function updateProgress(){
   var A = player(), now = $("tcNow"), fill = $("barFill");
   if(!now || !fill) return;
-  var dur = isFinite(A.duration) ? A.duration : 0;
-  now.innerHTML = mmss(A.currentTime*1000) + ' <small>/ ' + (dur ? mmss(dur*1000) : "--:--") + '</small>';
-  fill.style.width = (dur ? (A.currentTime/dur*100) : 0) + "%";
+  var multi = PL.list.length > 1;
+  var dur = multi ? plTotal() : (isFinite(A.duration) ? A.duration : 0);
+  var cur = multi ? plNow() : (A.currentTime || 0);
+  now.innerHTML = mmss(cur*1000) + ' <small>/ ' + (dur ? mmss(dur*1000) : "--:--") + '</small>';
+  fill.style.width = (dur ? Math.min(100, cur/dur*100) : 0) + "%";
 }
 function togglePlay(){
   var A = player();
-  if(A.paused){ A.play().catch(function(){}); } else { A.pause(); }
+  if(A.paused){
+    if(A.ended && PL.list.length > 1 && PL.idx === PL.list.length - 1){ loadPart(0, 0, true); return; }
+    A.play().catch(function(){});
+  } else { A.pause(); }
 }
 function setRate(r){
   S.rate = r;
   if(hasAudio()){
-    var A = player();
-    A.playbackRate = r;
-    if("preservesPitch" in A) A.preservesPitch = true;
-    if("webkitPreservesPitch" in A) A.webkitPreservesPitch = true;
+    applyRate(player());
   } else {
     stopSpeak();
   }
@@ -475,6 +541,7 @@ function setRate(r){
 }
 function seekBy(sec){
   var A = player();
+  if(PL.list.length > 1){ plSeek(Math.max(0, plNow() + sec)); return; }
   A.currentTime = Math.max(0, Math.min((A.duration||0), A.currentTime + sec));
   updateProgress();
 }
@@ -1015,8 +1082,10 @@ function paintDock(){
       $("aPick").onclick = openLocal;
       $("aBack5").onclick = function(){ seekBy(-5); };
       $("bar").onclick = function(e){
-        var r = this.getBoundingClientRect(), d = player().duration;
-        if(isFinite(d)) { player().currentTime = d * Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); updateProgress(); }
+        var r = this.getBoundingClientRect(), ratio = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        if(PL.list.length > 1){ var tot = plTotal(); if(tot) plSeek(tot * ratio); return; }
+        var d = player().duration;
+        if(isFinite(d)) { player().currentTime = d * ratio; updateProgress(); }
       };
       updateProgress();
     } else {
@@ -1153,8 +1222,9 @@ function loadById(id){
       return;
     }
     S.pid = p.id; S.title = p.title || p.id; S.text = p.text || ""; S.show = !!p.show;
-    S.audio = p.audio || ""; S.audioFailed = false; S.localURL = "";
-    if(S.audio) setupPlayer(S.audio);
+    var parts = parseAudio(p.audio);
+    S.audio = parts.length ? parts.join(" ") : ""; S.audioFailed = false; S.localURL = "";
+    if(parts.length) setupPlayer(parts);
     if(S.show && S.text){ renderPassage(S.text); show("pBook", false); $("pText").classList.remove("hidden"); }
     else { $("pText").innerHTML = ""; $("pText").classList.add("hidden"); show("pBook", true); }
 
