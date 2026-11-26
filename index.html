@@ -370,14 +370,30 @@ function view(name){
 /* ---------------- passage rendering ---------------- */
 /* 책처럼 보이게: 시트 본문의 줄바꿈 = 책 한 쪽(사이를 띄움), 쪽 안에서는 한 문장씩 줄을 바꾼다.
    따옴표 안의 문장은 대사가 끝날 때까지 한 줄로 둔다. 문장 단위는 듣기(기계 음성)에서도 그대로 쓴다. */
+/* "Why…?" Moon said.  /  "Look out!" Paul's mother called.
+   물음표·느낌표로 끝난 따옴표 뒤에 이름 + said/asked 가 오면 같은 줄에 둔다. */
+var SPEECH_VERB = /^(said|says|asked|asks|called|calls|cried|cries|yelled|yells|shouted|shouts|replied|replies|whispered|laughed|answered|added|told)$/i;
+function speechTag(toks, i){
+  if(!/[?!]["”]$/.test(toks[i])) return false;
+  for(var k = i + 1; k < toks.length && k <= i + 4; k++){
+    if(SPEECH_VERB.test(toks[k].replace(/[^A-Za-z]/g, ""))) return true;
+    if(/[.!?,]["”’)]*$/.test(toks[k]) || /["“]/.test(toks[k])) return false;
+  }
+  return false;
+}
 function splitLines(page){
   var toks = page.trim().split(/\s+/), lines = [], cur = [], q = 0;
+  var ITEM = /^(\d{1,2}\.|•)$/;   /* 목록 머리: "1." "2." 또는 "•" */
   toks.forEach(function(t, i){
+    if(t === "•" && cur.length){ lines.push(cur.join(" ")); cur = []; }   /* 글머리표는 늘 새 줄 */
     cur.push(t);
     q += (t.match(/["“”]/g) || []).length;
     var next = toks[i+1];
     var end = /[.!?]["”’)]*$/.test(t);
-    if(end && q % 2 === 0 && (!next || /^["“(A-Z0-9]/.test(next))){ lines.push(cur.join(" ")); cur = []; }
+    if(cur.length === 1 && ITEM.test(t)) return;   /* 줄 맨 앞 번호 "1." 뒤에서는 끊지 않음 */
+    var lead = /^[–—]$/.test(t) || /:$/.test(t);   /* "…cheesecake –" 다음에 목록이 오면 끊음 */
+    if(lead && next && ITEM.test(next)){ lines.push(cur.join(" ")); cur = []; return; }
+    if(end && q % 2 === 0 && (!next || /^["“(A-Z0-9•]/.test(next)) && !speechTag(toks, i)){ lines.push(cur.join(" ")); cur = []; }
   });
   if(cur.length) lines.push(cur.join(" "));
   return lines;
@@ -621,7 +637,8 @@ function speak(){
     if(run !== speakRun) return;
     if(k >= list.length){ S.speakingNow = false; clearHighlight(); paintDock(); return; }
     var seg = list[k++], v = pickVoice();
-    var u = new SpeechSynthesisUtterance(seg.text);
+    /* 글머리표·줄표는 소리 내지 않게 같은 길이의 빈칸으로 (단어 강조 위치 유지) */
+    var u = new SpeechSynthesisUtterance(seg.text.replace(/[•–—]/g, " "));
     if(v) u.voice = v;
     u.lang = v ? v.lang : "en-US";
     u.rate = S.rate * 0.95;
