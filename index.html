@@ -131,6 +131,27 @@ input[type=text]:focus,textarea:focus{outline:2px solid var(--teal);outline-offs
 
 .note{font-size:13px;color:var(--muted);line-height:1.65}
 .note code{background:#DFE5E8;padding:1px 5px;border-radius:4px;font-size:12px}
+select{width:100%;font:inherit;color:var(--ink);background:#FBFCFC;border:1px solid var(--line);border-radius:10px;padding:11px 12px;appearance:auto}
+select:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
+.fb{background:var(--teal-soft);border:1px solid var(--teal);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.fb .stars{font-size:22px;letter-spacing:2px;color:var(--amber);margin:2px 0 6px}
+.fb .kid{font-size:16px;line-height:1.6}
+.fb .miss{font-size:13px;color:var(--muted);margin-top:8px}
+.fb .miss b{color:var(--ink);font-weight:600}
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.qrcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;break-inside:avoid}
+.qrcard img{width:100%;max-width:150px;height:auto;display:block;margin:0 auto}
+.qrcard .qid{font-weight:700;font-size:13px;margin-top:6px}
+.qrcard .qt{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.status-ok{color:var(--teal);font-weight:700}
+.status-bad{color:var(--red);font-weight:700}
+@media print{
+  .dock,header,.credit,.noprint{display:none !important}
+  body{background:#fff}
+  .wrap{max-width:none;padding:0}
+  .qrgrid{grid-template-columns:repeat(4,1fr);gap:10px}
+  .qrcard{border:1px dashed #999;border-radius:0}
+}
 .linkbox{display:flex;gap:8px;margin-top:10px}
 .linkbox input{flex:1;font-size:13px}
 .ok{color:var(--teal);font-weight:700;font-size:14px}
@@ -147,70 +168,72 @@ audio{width:100%;margin-top:12px}
       <img src="logo.png" alt="Song &amp; Smith Academy" data-logo>
       <div class="wordmark">Song &amp; <b>S</b>mith <b>A</b>cademy</div>
     </div>
-    <button class="linkbtn" id="toSetup">선생님용</button>
+    <button class="linkbtn" id="toHelp">선생님용</button>
   </header>
 
-  <!-- ========== 선생님: 지문 만들기 ========== -->
-  <section id="view-setup" class="hidden">
+  <!-- ========== 로딩 ========== -->
+  <section id="view-loading" class="hidden">
+    <div class="card" style="text-align:center;padding:36px 18px">
+      <p class="note" id="loadMsg">지문을 불러오는 중입니다…</p>
+    </div>
+  </section>
+
+  <!-- ========== 선생님: 안내 ========== -->
+  <section id="view-help" class="hidden">
     <div class="card">
-      <h1>지문 등록</h1>
-      <p class="meta">지문을 넣고 링크를 만들어 학생에게 보내세요. 링크 안에 지문이 담겨 있어 서버가 필요 없습니다.</p>
+      <h1>읽기 녹음 · 선생님 안내</h1>
+      <p class="meta">학생용 링크는 지문 마스터 시트의 '링크' 열에 있습니다. 이 화면에서는 연결 상태 확인과 QR 인쇄만 합니다.</p>
       <div class="field">
-        <label for="fBase">이 페이지의 배포 주소</label>
-        <input type="text" id="fBase" placeholder="https://아이디.github.io/read/index.html" inputmode="url" spellcheck="false">
-        <p class="note" id="baseNote" style="margin-top:6px"></p>
+        <label>제출 서버 연결</label>
+        <p class="note" id="pingNote">확인 중…</p>
       </div>
       <div class="field">
-        <label for="fEndpoint">드라이브 제출 주소 (선택)</label>
-        <input type="text" id="fEndpoint" placeholder="https://script.google.com/macros/s/.../exec" spellcheck="false">
-      </div>
-      <div class="field">
-        <label for="fToken">제출 암호</label>
-        <input type="text" id="fToken" placeholder="Apps Script에 넣은 TOKEN과 같은 값" spellcheck="false">
-        <p class="note" style="margin-top:6px">비워 두면 학생이 카카오톡으로 직접 보내는 방식으로 동작합니다.</p>
-      </div>
-      <div class="field">
-        <label for="fTitle">제목</label>
-        <input type="text" id="fTitle" placeholder="예) Lesson 3 – The Honey Bee">
-      </div>
-      <div class="field">
-        <label for="fAudio">공식 음원 파일 이름 (선택)</label>
-        <input type="text" id="fAudio" placeholder="lesson3.mp3 또는 https://출판사주소/lesson3.mp3" spellcheck="false">
-        <div class="row" style="margin-top:8px">
-          <button class="btn sm" id="btnTestAudio">음원 확인</button>
+        <label for="qrPrefix">QR 카드 인쇄</label>
+        <div class="row">
+          <input type="text" id="qrPrefix" placeholder="예) H1-B1  (원서 1권 전체)  ·  H1  (코스 전체)" spellcheck="false">
+          <button class="btn sm" id="btnQr" style="flex:0 0 auto">QR 보기</button>
         </div>
-        <p class="note" id="audioNote" style="margin-top:6px">출판사가 공개한 음원 주소를 통째로 붙여넣는 것이 가장 깔끔합니다. 저장소에 올린 파일이면 이름만 적어도 됩니다. 비워 두면 학생이 자기 기기의 음원을 직접 열 수 있고, 그것도 없으면 기계 음성으로 읽어 줍니다.</p>
+        <p class="note" style="margin-top:6px">번호 앞부분을 넣으면 그 지문들의 QR 카드가 한 장에 나옵니다. 인쇄하거나, 카드 이미지를 복사해 Canva 레이아웃에 붙이세요.</p>
       </div>
       <div class="field">
-        <label for="fText">영어 지문</label>
-        <textarea id="fText" placeholder="영어 지문을 붙여넣으세요."></textarea>
-      </div>
-      <div class="row" style="margin-top:16px">
-        <button class="btn primary" id="btnMakeLink">학생용 링크 만들기</button>
-        <button class="btn" id="btnStartHere">이 기기에서 바로 시작</button>
-      </div>
-      <div id="linkResult" class="hidden">
-        <div class="linkbox">
-          <input type="text" id="outLink" readonly>
-          <button class="btn sm" id="btnCopy">복사</button>
+        <label>학생 화면 미리보기</label>
+        <div class="row">
+          <input type="text" id="tryId" placeholder="예) H1-B1-03" spellcheck="false">
+          <button class="btn sm" id="btnTry" style="flex:0 0 auto">열기</button>
         </div>
-        <p class="note" id="linkNote" style="margin-top:8px"></p>
       </div>
     </div>
   </section>
 
-  <!-- ========== 학생: 이름 입력 ========== -->
+  <!-- ========== 선생님: QR 인쇄 ========== -->
+  <section id="view-qr" class="hidden">
+    <div class="card noprint" style="margin-bottom:14px">
+      <div class="row">
+        <button class="btn sm" id="btnPrint">인쇄</button>
+        <button class="btn sm" id="btnQrBack">돌아가기</button>
+      </div>
+      <p class="note" id="qrNote" style="margin-top:8px"></p>
+    </div>
+    <div class="qrgrid" id="qrGrid"></div>
+  </section>
+
+  <!-- ========== 학생: 이름 선택 ========== -->
   <section id="view-start" class="hidden">
     <div class="hero"><img src="logo.png" alt="Song &amp; Smith Academy" data-logo></div>
     <div class="card">
       <h1 id="startTitle">지문 읽기</h1>
-      <p class="meta">듣기 → 녹음 → 확인 → 전송, 네 단계로 진행합니다.</p>
+      <p class="meta" id="startMeta">듣기 → 녹음 → 확인 → 제출, 네 단계로 진행합니다.</p>
+      <div class="field">
+        <label for="fCls">반</label>
+        <select id="fCls"></select>
+      </div>
       <div class="field">
         <label for="fName">이름</label>
-        <input type="text" id="fName" placeholder="예) 김민서" autocomplete="name">
+        <select id="fName"></select>
       </div>
       <button class="btn primary" id="btnBegin" style="margin-top:16px">시작하기</button>
-      <p class="err hidden" id="nameErr">이름을 입력해 주세요.</p>
+      <p class="err hidden" id="nameErr">반과 이름을 골라 주세요.</p>
+      <p class="note hidden" id="rosterErr" style="margin-top:10px"></p>
     </div>
   </section>
 
@@ -220,13 +243,21 @@ audio{width:100%;margin-top:12px}
       <div class="stop" data-s="1"><div class="dot">1</div><small>듣기</small></div>
       <div class="stop" data-s="2"><div class="dot">2</div><small>녹음</small></div>
       <div class="stop" data-s="3"><div class="dot">3</div><small>확인</small></div>
-      <div class="stop" data-s="4"><div class="dot">4</div><small>전송</small></div>
+      <div class="stop" data-s="4"><div class="dot">4</div><small>제출</small></div>
     </nav>
+
+    <div class="fb hidden" id="fbCard">
+      <p class="title" style="margin-bottom:2px">지난 녹음 결과 · <span id="fbWhen"></span></p>
+      <div class="stars" id="fbStars"></div>
+      <div class="kid" id="fbKid"></div>
+      <div class="miss" id="fbMiss"></div>
+    </div>
 
     <div class="card">
       <h1 id="pTitle">지문</h1>
       <p class="meta" id="pMeta"></p>
       <div class="passage" id="pText"></div>
+      <p class="note hidden" id="pBook" style="font-size:16px;padding:14px 0 4px">책을 보고 읽으세요. 화면에는 지문을 표시하지 않습니다.</p>
       <p class="hint" id="pHint">먼저 한 번 들어 보세요. 발음과 끊어 읽기에 집중합니다.</p>
     </div>
 
@@ -245,7 +276,7 @@ audio{width:100%;margin-top:12px}
     </div>
 
     <div class="card hidden" id="sendCard">
-      <p class="title">전송</p>
+      <p class="title">제출</p>
       <p class="note" id="sendNote"></p>
       <p class="err hidden" id="sendErr"></p>
     </div>
@@ -265,11 +296,21 @@ audio{width:100%;margin-top:12px}
 (function(){
 "use strict";
 
+/* ====================== 설정 ======================
+   Apps Script 배포 후 나온 /exec 주소와 암호를 여기 넣습니다.
+   이 두 줄만 고치면 됩니다. */
+var ENDPOINT = "https://script.google.com/macros/s/AKfycbwz2Qj8YFXfXhGwKmOltPHT1LN52t3h07DthNRqjM5Vc9-xvPtCwhG37cYwURisY_Yb/exec";
+var TOKEN    = "songsmith2026";    // Apps Script 의 TOKEN 과 같아야 합니다
+/* ================================================== */
+
 /* ---------------- state ---------------- */
 var S = {
   step: 1,
+  pid: "",
   title: "",
   text: "",
+  show: true,
+  cls: "",
   name: "",
   rate: 1,
   audio: "",
@@ -287,8 +328,8 @@ var S = {
   converting: 0,
   heard: null,
   heardCount: 0,
-  endpoint: "",
-  token: "",
+  endpoint: ENDPOINT,
+  token: TOKEN,
   sent: false,
   sending: false
 };
@@ -301,49 +342,6 @@ var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
 /* ---------------- utils ---------------- */
 function esc(s){ return s.replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
-function b64enc(str){ return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
-function b64dec(str){
-  return decodeURIComponent(escape(atob(unpad(str))));
-}
-function unpad(str){
-  str = str.replace(/-/g,"+").replace(/_/g,"/");
-  while(str.length % 4) str += "=";
-  return str;
-}
-function bytesToB64(bytes){
-  var bin = "", CH = 0x8000;
-  for(var i=0;i<bytes.length;i+=CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i+CH));
-  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-}
-function b64ToBytes(str){
-  var bin = atob(unpad(str)), out = new Uint8Array(bin.length);
-  for(var i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-/* deflate-raw로 압축해 링크를 짧게 만든다. 미지원 브라우저는 평문 base64로 폴백. */
-function pack(obj){
-  var json = JSON.stringify(obj);
-  if(!window.CompressionStream) return Promise.resolve("p=" + b64enc(json));
-  try{
-    var stream = new Blob([new TextEncoder().encode(json)]).stream()
-      .pipeThrough(new CompressionStream("deflate-raw"));
-    return new Response(stream).arrayBuffer()
-      .then(function(buf){ return "z=" + bytesToB64(new Uint8Array(buf)); })
-      .catch(function(){ return "p=" + b64enc(json); });
-  }catch(e){ return Promise.resolve("p=" + b64enc(json)); }
-}
-function unpack(kind, data){
-  if(kind === "p") return Promise.resolve(JSON.parse(b64dec(data)));
-  if(!window.DecompressionStream) return Promise.reject(new Error("no DecompressionStream"));
-  var stream = new Blob([b64ToBytes(data)]).stream()
-    .pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Response(stream).text().then(JSON.parse);
-}
-/* 아티팩트 미리보기(about:srcdoc)나 file:// 에서는 자기 주소를 링크로 쓸 수 없다. */
-function pageBase(){
-  var h = location.href.split("#")[0];
-  return /^https?:\/\//.test(h) ? h : "";
-}
 function mmss(ms){
   var t = Math.floor(ms/1000);
   return String(Math.floor(t/60)).padStart(2,"0") + ":" + String(t%60).padStart(2,"0");
@@ -357,10 +355,10 @@ function show(id, on){ $(id).classList.toggle("hidden", !on); }
 
 /* ---------------- views ---------------- */
 function view(name){
-  ["setup","start","practice"].forEach(function(v){ show("view-"+v, v===name); });
+  ["loading","help","qr","start","practice"].forEach(function(v){ show("view-"+v, v===name); });
   show("dock", name==="practice");
   $("wrap").classList.toggle("no-dock", name!=="practice");
-  show("toSetup", name!=="setup");
+  show("toHelp", name!=="help" && name!=="qr");
   window.scrollTo(0,0);
 }
 
@@ -786,7 +784,7 @@ $("myAudio").addEventListener("ratechange", function(){ if(this.playbackRate !==
 
 /* ---------------- step 4: 전송 ---------------- */
 function filename(){
-  return safe(S.name) + "_" + safe(S.title || "reading") + "_" + today() + "." + S.ext;
+  return (S.pid || safe(S.title) || "reading") + "_" + today() + "_" + safe(S.name) + "." + S.ext;
 }
 function uploadToDrive(){
   if(!S.blob || !S.endpoint) return;
@@ -794,38 +792,53 @@ function uploadToDrive(){
   $("sendNote").textContent = "선생님께 보내는 중입니다. 잠시만 기다려 주세요.";
   $("sendErr").classList.add("hidden");
 
+  var giveUp = function(why){
+    S.sending = false;
+    downloadFile();
+    $("sendNote").innerHTML = '<span class="ok">파일로 저장했습니다.</span> 자동 제출이 되지 않아 저장으로 대신했습니다. ' +
+      '카카오톡으로 <code>' + esc(filename()) + '</code> 파일을 선생님께 보내 주세요.';
+    $("sendErr").innerHTML = "실패 원인: " + esc(why) + "<br>위 제출 버튼을 다시 눌러 재시도할 수 있습니다.";
+    $("sendErr").classList.remove("hidden");
+    paintDock();
+  };
+
   var reader = new FileReader();
   reader.onload = function(){
     var b64 = String(reader.result).split(",")[1];
     fetch(S.endpoint, {
       method: "POST",
+      redirect: "follow",
       body: JSON.stringify({
-        token: S.token, name: filename(), mime: S.mime, data: b64,
-        student: S.name, title: S.title, dur: Math.round(S.dur)
+        token: S.token, id: S.pid, cls: S.cls, name: S.name,
+        mime: S.mime, data: b64, dur: Math.round(S.dur)
       })
     })
-    .then(function(r){ return r.json(); })
-    .then(function(j){
-      S.sending = false;
-      if(j && j.ok){
-        S.sent = true;
-        $("sendNote").innerHTML = '<span class="ok">제출이 완료되었습니다.</span> 선생님 드라이브에 저장되었습니다.';
-      } else {
-        throw new Error(j && j.error ? j.error : "unknown");
-      }
-      paintDock();
+    .then(function(r){
+      return r.text().then(function(t){ return { status: r.status, text: t }; });
     })
-    .catch(function(){
-      S.sending = false;
-      downloadFile();
-      $("sendNote").innerHTML = '<span class="ok">파일로 저장했습니다.</span> 자동 제출이 되지 않아 저장으로 대신했습니다. ' +
-        '카카오톡으로 <code>' + esc(filename()) + '</code> 파일을 선생님께 보내 주세요.';
-      $("sendErr").textContent = "인터넷 연결이 불안정하거나 제출 주소가 바뀌었을 수 있습니다. 다시 시도해 보셔도 됩니다.";
-      $("sendErr").classList.remove("hidden");
-      paintDock();
+    .then(function(res){
+      var j = null;
+      try{ j = JSON.parse(res.text); }catch(e){}
+
+      if(j && j.ok){
+        S.sending = false; S.sent = true;
+        $("sendNote").innerHTML = '<span class="ok">제출이 완료되었습니다.</span> 선생님 드라이브에 저장되었습니다.';
+        paintDock();
+        return;
+      }
+      if(j && j.error === "bad token") return giveUp("제출 암호가 스크립트의 TOKEN과 다릅니다.");
+      if(j && j.error === "file too large") return giveUp("파일이 너무 큽니다. 더 짧게 녹음해 주세요.");
+      if(j && j.error && /unknown passage/.test(j.error)) return giveUp("시트의 지문목록에 이 번호가 없습니다 · " + S.pid);
+      if(j && j.error) return giveUp("스크립트 오류 · " + j.error);
+      if(res.text.charAt(0) === "<") return giveUp("제출 주소가 로그인 화면을 돌려주었습니다. 배포 설정의 액세스 권한을 '모든 사용자'로 바꾸세요.");
+      return giveUp("응답 코드 " + res.status + " · 내용 " + res.text.slice(0, 60));
+    })
+    .catch(function(err){
+      giveUp("연결 실패 · " + (err && err.message ? err.message : "알 수 없음") +
+             " · 제출 주소가 /exec 로 끝나는지 확인하세요.");
     });
   };
-  reader.onerror = function(){ S.sending = false; paintDock(); };
+  reader.onerror = function(){ giveUp("파일을 읽지 못했습니다."); };
   reader.readAsDataURL(S.blob);
 }
 
@@ -886,8 +899,9 @@ function go(step){
   $("sendErr").classList.add("hidden");
 
   var hints = {
-    1: hasAudio() ? "먼저 들어 보세요. 속도를 늦춰 두 번 들으면 끊어 읽기가 훨씬 잘 잡힙니다." : "먼저 한 번 들어 보세요. 발음과 끊어 읽기에 집중합니다.",
-    2:"지문을 보면서 소리 내어 읽으세요. 틀려도 멈추지 말고 끝까지 갑니다.",
+    1: hasAudio() ? "먼저 들어 보세요. 속도를 늦춰 두 번 들으면 끊어 읽기가 훨씬 잘 잡힙니다."
+       : (S.text ? "먼저 한 번 들어 보세요. 발음과 끊어 읽기에 집중합니다." : "책의 음원을 먼저 듣거나, 아래에서 내 기기의 음원 파일을 열어 들어 보세요."),
+    2: S.show ? "지문을 보면서 소리 내어 읽으세요. 틀려도 멈추지 말고 끝까지 갑니다." : "책을 보면서 소리 내어 읽으세요. 틀려도 멈추지 말고 끝까지 갑니다.",
     3:"내 녹음을 들어 보세요. 마음에 들지 않으면 다시 녹음할 수 있습니다.",
     4:"선생님께 보내면 끝입니다."
   };
@@ -933,18 +947,12 @@ function paintDock(){
       st.innerHTML = '<span class="note">' + (speaking() ? "읽는 중" : "듣기 속도") + "</span>" +
                      '<span class="speed">' + chips + "</span>";
       ac.innerHTML =
-        '<button class="btn primary" id="aPlay">' + (speaking() ? "멈추기" : "지문 듣기") + "</button>" +
-        '<button class="btn" id="aNext" style="margin-top:10px"' + (S.listened ? "" : " disabled") + ">녹음하러 가기</button>" +
+        (S.text ? '<button class="btn primary" id="aPlay">' + (speaking() ? "멈추기" : "지문 듣기") + "</button>" : "") +
+        '<button class="btn' + (S.text ? "" : " primary") + '" id="aNext" style="margin-top:10px"' + (S.listened || !S.text ? "" : " disabled") + ">녹음하러 가기</button>" +
         '<button class="linkbtn" id="aPick" style="margin:6px auto 0;display:block">내 기기의 음원 파일 열기</button>';
-      $("aPlay").onclick = function(){ speaking() ? stopSpeak() : speak(); };
+      if($("aPlay")) $("aPlay").onclick = function(){ speaking() ? stopSpeak() : speak(); };
       $("aPick").onclick = openLocal;
     }
-    ac.insertAdjacentHTML("beforeend",
-      '<div style="text-align:center;margin-top:8px">' +
-        '<button class="linkbtn" id="aPick">' +
-        (S.audioLocal ? "다른 음원 파일 열기 (지금: " + esc(S.audioLocal) + ")" : "내 기기에서 음원 파일 열기") +
-        "</button></div>");
-    $("aPick").onclick = function(){ $("filePick").click(); };
     $("aNext").onclick = function(){ go(2); };
     Array.prototype.forEach.call(st.querySelectorAll(".chip"), function(c){
       c.onclick = function(){ setRate(parseFloat(c.dataset.rate)); };
@@ -989,14 +997,14 @@ function paintDock(){
   } else {
     st.innerHTML = '<span class="note">' + esc(S.name) + " · " + esc(S.title || "지문 읽기") + "</span>";
     if(S.sent){
-      ac.innerHTML = '<button class="btn" id="aAgain">다른 지문 하기</button>';
+      ac.innerHTML = '<button class="btn" id="aAgain">한 번 더 읽기</button>';
     } else if(S.endpoint){
       ac.innerHTML =
         '<button class="btn primary" id="aSend"' + (S.sending ? " disabled" : "") + ">" +
           (S.sending ? "보내는 중…" : "선생님께 제출하기") + "</button>" +
         '<div class="row" style="margin-top:10px">' +
           '<button class="btn sm" id="aSave">파일로 저장</button>' +
-          '<button class="btn sm" id="aAgain">다른 지문 하기</button>' +
+          '<button class="btn sm" id="aAgain">처음부터 다시</button>' +
         "</div>";
       $("aSend").onclick = uploadToDrive;
     } else {
@@ -1004,7 +1012,7 @@ function paintDock(){
         '<button class="btn primary" id="aSend">선생님께 보내기</button>' +
         '<div class="row" style="margin-top:10px">' +
           '<button class="btn sm" id="aSave">파일로 저장</button>' +
-          '<button class="btn sm" id="aAgain">다른 지문 하기</button>' +
+          '<button class="btn sm" id="aAgain">처음부터 다시</button>' +
         "</div>";
       $("aSend").onclick = sendFile;
     }
@@ -1021,107 +1029,170 @@ function paintDock(){
   }
 }
 
-/* ---------------- wiring ---------------- */
-$("toSetup").onclick = function(){ stopSpeak(); stopRec(); openSetup(); };
+/* ---------------- 서버 호출 ---------------- */
+function apiGet(params){
+  if(!ENDPOINT) return Promise.reject(new Error("ENDPOINT 미설정"));
+  var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+  return fetch(ENDPOINT + (ENDPOINT.indexOf("?") >= 0 ? "&" : "?") + qs, { redirect:"follow" })
+    .then(function(r){ return r.text(); })
+    .then(function(t){
+      if(t.charAt(0) === "<") throw new Error("서버가 로그인 화면을 돌려주었습니다. 배포 액세스 권한을 '모든 사용자'로 바꾸세요.");
+      return JSON.parse(t);
+    });
+}
+function appBase(){ return location.href.split("#")[0]; }
 
-$("btnMakeLink").onclick = function(){
-  var t = $("fText").value.trim();
-  if(!t){ $("fText").focus(); return; }
-  var base = $("fBase").value.trim();
-  if(!/^https?:\/\/\S+/.test(base)){
-    $("baseNote").innerHTML = '<span style="color:var(--red);font-weight:600">배포 주소를 먼저 입력해 주세요.</span> 학생이 열 수 있는 <code>https://</code> 주소여야 합니다.';
-    $("fBase").focus();
+/* 명단은 하루 동안 폰에 저장해 두고 재사용 */
+function getRoster(){
+  try{
+    var c = JSON.parse(localStorage.getItem("rr_roster") || "null");
+    if(c && c.at && Date.now() - c.at < 24*3600*1000 && c.classes) return Promise.resolve(c.classes);
+  }catch(e){}
+  return apiGet({ roster:1 }).then(function(j){
+    if(!j.ok) throw new Error(j.error || "roster");
+    try{ localStorage.setItem("rr_roster", JSON.stringify({ at:Date.now(), classes:j.classes })); }catch(e){}
+    return j.classes;
+  });
+}
+function savedStudent(){
+  try{ return JSON.parse(localStorage.getItem("rr_student") || "null"); }catch(e){ return null; }
+}
+
+/* ---------------- 학생 흐름 ---------------- */
+function loadById(id){
+  view("loading");
+  $("loadMsg").textContent = "지문을 불러오는 중입니다…";
+  if(!ENDPOINT){
+    $("loadMsg").innerHTML = '<span class="status-bad">아직 서버 주소가 설정되지 않았습니다.</span><br>index.html 맨 위 ENDPOINT 에 Apps Script 주소를 넣어 주세요.';
     return;
   }
-  pack({ t: $("fTitle").value.trim(), x: t, a: $("fAudio").value.trim(),
-         e: $("fEndpoint").value.trim(), k: $("fToken").value.trim() }).then(function(frag){
-    var url = base.split("#")[0] + "#" + frag;
-    $("outLink").value = url;
-    $("linkNote").innerHTML = "길이 " + url.length + "자. 카카오톡·클래스룸에 그대로 붙여넣으세요." +
-      (url.length > 6000 ? ' <span style="color:var(--red)">지문이 길어 일부 메신저에서 잘릴 수 있습니다. 문단을 나눠 두 과제로 만드는 편이 안전합니다.</span>' : "");
-    show("linkResult", true);
-    $("outLink").select();
+  Promise.all([ apiGet({ id:id }), getRoster() ]).then(function(res){
+    var p = res[0], classes = res[1];
+    if(!p.ok){
+      $("loadMsg").innerHTML = '<span class="status-bad">이 번호의 지문이 없습니다.</span> ' + esc(id) + '<br>시트의 지문목록에 번호가 있는지 확인해 주세요.';
+      return;
+    }
+    S.pid = p.id; S.title = p.title || p.id; S.text = p.text || ""; S.show = !!p.show;
+    S.audio = p.audio || ""; S.audioFailed = false; S.localURL = "";
+    if(S.audio) setupPlayer(S.audio);
+    if(S.show && S.text){ renderPassage(S.text); show("pBook", false); $("pText").classList.remove("hidden"); }
+    else { $("pText").innerHTML = ""; $("pText").classList.add("hidden"); show("pBook", true); }
+
+    $("startTitle").textContent = S.title;
+    $("startMeta").textContent = S.pid + " · 듣기 → 녹음 → 확인 → 제출";
+    fillPicker(classes);
+    view("start");
+  }).catch(function(err){
+    $("loadMsg").innerHTML = '<span class="status-bad">불러오지 못했습니다.</span><br>' + esc(err.message || String(err)) + '<br><button class="btn sm" id="btnRetry" style="margin-top:12px">다시 시도</button>';
+    $("btnRetry").onclick = function(){ loadById(id); };
   });
-};
-$("btnCopy").onclick = function(){
-  $("outLink").select();
-  var done = function(){ $("btnCopy").textContent = "복사됨"; setTimeout(function(){ $("btnCopy").textContent = "복사"; }, 1500); };
-  if(navigator.clipboard) navigator.clipboard.writeText($("outLink").value).then(done, done);
-  else { document.execCommand("copy"); done(); }
-};
-$("btnStartHere").onclick = function(){
-  var t = $("fText").value.trim();
-  if(!t){ $("fText").focus(); return; }
-  loadPassage($("fTitle").value.trim(), t, $("fAudio").value.trim(), $("fEndpoint").value.trim(), $("fToken").value.trim());
-};
+}
 
-$("filePick").addEventListener("change", function(){
-  var f = this.files && this.files[0];
-  if(!f) return;
-  stopSpeak();
-  if(S.audio && S.audio.indexOf("blob:") === 0) URL.revokeObjectURL(S.audio);
-  S.audio = URL.createObjectURL(f);
-  S.audioLocal = f.name;
-  S.audioFailed = false;
-  S.listened = false;
-  setupPlayer();
-  $("pHint").textContent = "내 기기의 음원으로 듣습니다. 이 파일은 어디로도 전송되지 않습니다.";
-  paintDock();
-  this.value = "";
-});
-
-$("btnTestAudio").onclick = function(){
-  var src = $("fAudio").value.trim();
-  var note = $("audioNote");
-  if(!src){ note.innerHTML = "비워 두면 기계 음성으로 읽어 줍니다."; return; }
-  note.textContent = "확인 중…";
-  var probe = new Audio();
-  probe.preload = "metadata";
-  probe.onloadedmetadata = function(){
-    note.innerHTML = '<span class="ok">음원을 찾았습니다.</span> 길이 ' + mmss(probe.duration*1000) + ".";
+var rosterCache = [];
+function fillPicker(classes){
+  rosterCache = classes || [];
+  var saved = savedStudent();
+  var cs = $("fCls"), ns = $("fName");
+  cs.innerHTML = '<option value="">반 선택</option>' + rosterCache.map(function(c){
+    return '<option value="' + esc(c.cls) + '">' + esc(c.cls) + "</option>";
+  }).join("");
+  if(!rosterCache.length){
+    show("rosterErr", true);
+    $("rosterErr").innerHTML = '<span class="status-bad">학생 명단이 비어 있습니다.</span> 선생님께 시트의 학생명단 탭을 채워 달라고 하세요.';
+  }
+  var pickCls = function(cls){
+    var c = rosterCache.filter(function(x){ return x.cls === cls; })[0];
+    ns.innerHTML = '<option value="">이름 선택</option>' + ((c && c.students) || []).map(function(n){
+      return '<option value="' + esc(n) + '">' + esc(n) + "</option>";
+    }).join("");
   };
-  probe.onerror = function(){
-    note.innerHTML = '<span style="color:var(--red);font-weight:600">음원을 찾을 수 없습니다.</span> 페이지 주소가 아니라 mp3 파일 자체 주소여야 합니다. 재생기에 오른쪽 클릭 → 오디오 URL 복사로 얻으세요. 저장소에 올린 파일이라면 이름과 확장자를 확인하세요. 대소문자를 구분합니다.';
-  };
-  probe.src = src;
-};
+  cs.onchange = function(){ pickCls(cs.value); };
+  if(saved && saved.cls){ cs.value = saved.cls; pickCls(saved.cls); if(saved.name) ns.value = saved.name; }
+  else pickCls("");
+}
 
 $("btnBegin").onclick = function(){
-  var n = $("fName").value.trim();
-  if(!n){ show("nameErr", true); $("fName").focus(); return; }
+  var cls = $("fCls").value, name = $("fName").value;
+  if(!cls || !name){ show("nameErr", true); return; }
   show("nameErr", false);
-  S.name = n;
-  $("pTitle").textContent = S.title || "지문 읽기";
-  $("pMeta").textContent = S.name + " · " + new Date().toLocaleDateString("ko-KR");
+  S.cls = cls; S.name = name;
+  try{ localStorage.setItem("rr_student", JSON.stringify({ cls:cls, name:name })); }catch(e){}
+  $("pTitle").textContent = S.title;
+  $("pMeta").textContent = S.pid + " · " + S.cls + " " + S.name + " · " + new Date().toLocaleDateString("ko-KR");
+  show("fbCard", false);
   view("practice");
   go(1);
+  apiGet({ last:1, cls:cls, name:name }).then(function(j){
+    if(j && j.ok && j.found) showFeedback(j);
+  }).catch(function(){});
 };
-$("fPick").addEventListener("change", function(e){ loadLocal(e.target.files && e.target.files[0]); e.target.value = ""; });
 
-$("fName").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnBegin").click(); });
-
-function loadPassage(title, text, audio, endpoint, token){
-  S.title = title; S.text = text;
-  S.endpoint = endpoint || ""; S.token = token || "";
-  S.audio = audio || ""; S.audioFailed = false;
-  if(S.audio) setupPlayer(S.audio);
-  renderPassage(text);
-  $("startTitle").textContent = title || "지문 읽기";
-  view("start");
-  setTimeout(function(){ $("fName").focus(); }, 120);
+function showFeedback(f){
+  var stars = Math.max(1, Math.min(5, Number(f.stars) || 0));
+  $("fbWhen").textContent = (f.when || "") + " · " + (f.title || f.id || "");
+  $("fbStars").textContent = "★".repeat(stars) + "☆".repeat(5 - stars);
+  $("fbKid").textContent = f.kid || "";
+  var missed = String(f.missed || "").trim();
+  $("fbMiss").innerHTML = missed ? "다시 볼 단어: <b>" + esc(missed) + "</b>" : "빠뜨린 단어 없이 잘 읽었어요.";
+  show("fbCard", true);
 }
+
+/* ---------------- 선생님 화면 ---------------- */
+function openHelp(){
+  view("help");
+  var note = $("pingNote");
+  if(!ENDPOINT){
+    note.innerHTML = '<span class="status-bad">ENDPOINT 가 비어 있습니다.</span> index.html 맨 위에 Apps Script 주소를 넣고 다시 올려 주세요.';
+    return;
+  }
+  note.textContent = "확인 중…";
+  apiGet({}).then(function(j){
+    note.innerHTML = j && j.ok ? '<span class="status-ok">연결됨.</span> 시트의 링크 열을 학생에게 보내면 됩니다.' : '<span class="status-bad">응답이 이상합니다.</span>';
+  }).catch(function(err){
+    note.innerHTML = '<span class="status-bad">연결 실패.</span> ' + esc(err.message || String(err));
+  });
+}
+$("toHelp").onclick = function(){ stopSpeak(); stopRec(); openHelp(); };
+$("btnQr").onclick = function(){
+  var pre = $("qrPrefix").value.trim().toUpperCase();
+  if(!pre){ $("qrPrefix").focus(); return; }
+  location.hash = "qr=" + pre;
+  openQr(pre);
+};
+$("btnTry").onclick = function(){
+  var id = $("tryId").value.trim().toUpperCase();
+  if(!id){ $("tryId").focus(); return; }
+  location.hash = id;
+  loadById(id);
+};
+$("btnPrint").onclick = function(){ window.print(); };
+$("btnQrBack").onclick = function(){ location.hash = ""; openHelp(); };
+
+function openQr(prefix){
+  view("qr");
+  $("qrGrid").innerHTML = "";
+  $("qrNote").textContent = "불러오는 중…";
+  apiGet({ qr:prefix }).then(function(j){
+    var items = (j && j.items) || [];
+    if(!items.length){ $("qrNote").innerHTML = '<span class="status-bad">' + esc(prefix) + ' 로 시작하는 지문이 없습니다.</span>'; return; }
+    $("qrNote").textContent = prefix + " · " + items.length + "개. 인쇄하거나 카드를 복사해 쓰세요.";
+    $("qrGrid").innerHTML = items.map(function(it){
+      var link = appBase() + "#" + it.id;
+      var src = "https://quickchart.io/qr?size=300&margin=1&text=" + encodeURIComponent(link);
+      return '<div class="qrcard"><img src="' + src + '" alt="' + esc(it.id) + '">' +
+             '<div class="qid">' + esc(it.id) + '</div><div class="qt">' + esc(it.title || "") + "</div></div>";
+    }).join("");
+  }).catch(function(err){
+    $("qrNote").innerHTML = '<span class="status-bad">불러오지 못했습니다.</span> ' + esc(err.message || String(err));
+  });
+}
+
+/* ---------------- 음원 파일 선택 ---------------- */
+$("filePick").addEventListener("change", function(e){ loadLocal(e.target.files && e.target.files[0]); e.target.value = ""; });
+$("fPick").addEventListener("change", function(e){ loadLocal(e.target.files && e.target.files[0]); e.target.value = ""; });
 
 /* voices load lazily in Chrome */
 if("speechSynthesis" in window){ speechSynthesis.onvoiceschanged = function(){}; speechSynthesis.getVoices(); }
-
-function openSetup(){
-  view("setup");
-  var base = pageBase();
-  $("fBase").value = base;
-  $("baseNote").innerHTML = base
-    ? "이 페이지 주소를 자동으로 넣었습니다."
-    : '이 페이지가 아직 웹에 올라가 있지 않아 주소를 알 수 없습니다. GitHub Pages 등에 올린 뒤 그 주소를 넣어 주세요. <code>file://</code> 이나 미리보기 화면에서는 학생 마이크도 열리지 않습니다.';
-}
 
 /* 로고 파일이 저장소에 있으면 이미지, 없으면 글자 로고 */
 Array.prototype.forEach.call(document.querySelectorAll("[data-logo]"), function(img){
@@ -1134,17 +1205,18 @@ Array.prototype.forEach.call(document.querySelectorAll("[data-logo]"), function(
 loadLame();
 
 /* boot */
-(function boot(){
-  var m = location.hash.match(/[#&](p|z)=([^&]+)/);
-  if(m){
-    unpack(m[1], m[2]).then(function(d){
-      if(d && d.x) loadPassage(d.t || "", d.x, d.a || "", d.e || "", d.k || "");
-      else openSetup();
-    }).catch(openSetup);
-    return;
-  }
-  openSetup();
-})();
+function boot(){
+  var h = decodeURIComponent(location.hash.replace(/^#/, "")).trim();
+  var m;
+  if((m = h.match(/^qr=(.+)$/i))) return openQr(m[1].toUpperCase());
+  if(/^[A-Z0-9]+-[A-Z0-9]+-[0-9]+$/i.test(h)) return loadById(h.toUpperCase());
+  openHelp();
+}
+boot();
+window.addEventListener("hashchange", function(){
+  if(recording()) return;
+  boot();
+});
 
 window.addEventListener("beforeunload", function(){ stopSpeak(); cleanupAudio(); });
 })();
