@@ -72,6 +72,9 @@ h1{font-size:21px;line-height:1.35;margin:0 0 4px;letter-spacing:-.02em}
   font-size:20px;line-height:1.85;letter-spacing:.005em;
   max-height:46vh;overflow-y:auto;padding-right:4px;
 }
+.passage .pg{margin:0 0 1.1em}
+.passage .pg:last-child{margin-bottom:0}
+.passage .ln{display:block;word-spacing:.14em;line-height:1.6;margin:0 0 .35em;padding-left:1em;text-indent:-1em}
 .passage .w{border-radius:3px;padding:1px 0}
 .passage .w.on{background:var(--amber);box-shadow:0 0 0 3px var(--amber)}
 .hint{font-size:13px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
@@ -333,7 +336,7 @@ var S = {
   sent: false,
   sending: false
 };
-var wordEls = [], wordRanges = [];
+var wordEls = [], segs = [];
 var media = { active:false, stream:null, ctx:null, analyser:null, node:null, sink:null,
               chunks:[], samples:0, peak:0, raf:0, t0:0, timer:0 };
 
@@ -363,28 +366,49 @@ function view(name){
 }
 
 /* ---------------- passage rendering ---------------- */
+/* 책처럼 보이게: 시트 본문의 줄바꿈 = 책 한 쪽(사이를 띄움), 쪽 안에서는 한 문장씩 줄을 바꾼다.
+   따옴표 안의 문장은 대사가 끝날 때까지 한 줄로 둔다. 문장 단위는 듣기(기계 음성)에서도 그대로 쓴다. */
+function splitLines(page){
+  var toks = page.trim().split(/\s+/), lines = [], cur = [], q = 0;
+  toks.forEach(function(t, i){
+    cur.push(t);
+    q += (t.match(/["“”]/g) || []).length;
+    var next = toks[i+1];
+    var end = /[.!?]["”’)]*$/.test(t);
+    if(end && q % 2 === 0 && (!next || /^["“(A-Z0-9]/.test(next))){ lines.push(cur.join(" ")); cur = []; }
+  });
+  if(cur.length) lines.push(cur.join(" "));
+  return lines;
+}
 function renderPassage(text){
-  var parts = text.split(/(\s+)/), html = "", idx = 0;
-  wordRanges = [];
-  parts.forEach(function(p){
-    if(!p) return;
-    if(/^\s+$/.test(p)){
-      html += p.indexOf("\n") >= 0 ? "<br>" : " ";
-    } else {
-      wordRanges.push([idx, idx + p.length]);
-      html += '<span class="w" data-i="' + (wordRanges.length-1) + '">' + esc(p) + "</span>";
-    }
-    idx += p.length;
+  var html = "", wi = 0;
+  segs = [];
+  text.split(/\n+/).forEach(function(page){
+    if(!page.trim()) return;
+    var lines = splitLines(page);
+    html += '<div class="pg">';
+    lines.forEach(function(line, li){
+      var words = line.split(" "), ranges = [], pos = 0, start = wi;
+      html += '<span class="ln">';
+      words.forEach(function(w, k){
+        ranges.push([pos, pos + w.length]);
+        pos += w.length + 1;
+        html += (k ? " " : "") + '<span class="w" data-i="' + (wi++) + '">' + esc(w) + "</span>";
+      });
+      html += "</span>";
+      segs.push({ text: line, start: start, ranges: ranges, pageEnd: li === lines.length - 1 });
+    });
+    html += "</div>";
   });
   $("pText").innerHTML = html;
   wordEls = Array.prototype.slice.call($("pText").querySelectorAll(".w"));
 }
-function highlight(charIndex){
-  var hit = -1;
-  for(var i=0;i<wordRanges.length;i++){
-    if(charIndex >= wordRanges[i][0] && charIndex < wordRanges[i][1]){ hit = i; break; }
+function highlightIn(seg, charIndex){
+  for(var i=0;i<seg.ranges.length;i++){
+    if(charIndex >= seg.ranges[i][0] && charIndex < seg.ranges[i][1]){ setOn(seg.start + i); return; }
   }
-  if(hit < 0) return;
+}
+function setOn(hit){
   wordEls.forEach(function(el){ el.classList.remove("on"); });
   var el = wordEls[hit];
   if(!el) return;
@@ -467,34 +491,86 @@ function loadLocal(file){
 function stopAudio(){ var A = player(); if(A && !A.paused) A.pause(); }
 
 /* --- 폴백: 브라우저 기계 음성 --- */
-function pickVoice(){
-  var vs = speechSynthesis.getVoices().filter(function(v){ return /^en/i.test(v.lang); });
-  if(!vs.length) return null;
-  var pref = vs.filter(function(v){ return /Samantha|Google US English|Aria|Jenny|Natural/i.test(v.name); })[0];
-  return pref || vs[0];
+/* 기기에 있는 영어 목소리 중 자연스러운 것(Natural·Neural·Enhanced·Google 등)을 먼저 고르고,
+   장난감 같은 효과음 목소리는 뺀다. 아이가 '목소리 바꾸기'로 고른 목소리는 폰이 기억한다. */
+var BAD_VOICE = /Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Deranged|Good News|Hysterical|Jester|Junior|Kathy|Organ|Princess|Ralph|Superstar|Trinoids|Whisper|Wobble|Zarvox|Fred|Grandma|Grandpa|Rocko|Shelley|Flo|Eddy|Reed|Sandy/i;
+function voiceScore(v){
+  var s = 0, n = v.name || "";
+  if(/^en[-_]US/i.test(v.lang)) s += 3; else if(/^en[-_](GB|AU|CA|IE|NZ)/i.test(v.lang)) s += 2; else s += 1;
+  if(/Natural|Neural|Online|Premium|Enhanced|Wavenet|Studio/i.test(n)) s += 6;
+  if(/Google/i.test(n)) s += 4;
+  if(/Ava|Allison|Zoe|Evan|Nathan|Aria|Jenny|Guy|Michelle|Emma|Brian|Libby|Sonia|Ryan|Natasha|Samantha/i.test(n)) s += 2;
+  if(v.localService === false) s += 1;
+  if(BAD_VOICE.test(n)) s -= 20;
+  return s;
 }
+function englishVoices(){
+  if(!("speechSynthesis" in window)) return [];
+  return speechSynthesis.getVoices()
+    .filter(function(v){ return /^en/i.test(v.lang) && !BAD_VOICE.test(v.name || ""); })
+    .sort(function(a, b){ return voiceScore(b) - voiceScore(a); });
+}
+function pickVoice(){
+  var vs = englishVoices();
+  if(!vs.length) return null;
+  var saved = null;
+  try{ saved = localStorage.getItem("rr_voice"); }catch(e){}
+  if(saved){ var m = vs.filter(function(v){ return v.name === saved; })[0]; if(m) return m; }
+  return vs[0];
+}
+function voiceLabel(v){
+  if(!v) return "기본";
+  return (v.name || "").replace(/Microsoft |Google |\(.*?\)| - .*$|Online/g, "").replace(/\s+/g, " ").trim() || v.name;
+}
+function nextVoice(){
+  var vs = englishVoices().slice(0, 8);
+  if(vs.length < 2) return;
+  var cur = pickVoice(), i = 0;
+  for(var k=0;k<vs.length;k++){ if(cur && vs[k].name === cur.name){ i = k; break; } }
+  var nv = vs[(i + 1) % vs.length];
+  try{ localStorage.setItem("rr_voice", nv.name); }catch(e){}
+  if(speaking()) speak(); else paintDock();
+}
+
+/* 한 번에 긴 글을 읽히면 끊기는 폰이 있고 숨 쉴 틈 없이 기계적으로 들린다.
+   문장 하나씩 읽고, 문장 사이는 짧게, 책 쪽이 바뀌는 곳은 조금 길게 쉰다. */
+var speakRun = 0;
 function speak(){
   if(!("speechSynthesis" in window)){
     alert("이 브라우저는 음성 재생을 지원하지 않습니다. 크롬이나 사파리 최신 버전에서 열어 주세요.");
     return;
   }
   speechSynthesis.cancel();
-  setTimeout(function(){
-    var u = new SpeechSynthesisUtterance(S.text);
-    var v = pickVoice();
+  var run = ++speakRun;
+  var list = segs.length ? segs : [{ text: S.text, start: 0, ranges: [], pageEnd: true }];
+  var k = 0;
+  S.listened = true; S.speakingNow = true;
+  paintDock();
+  var next = function(){
+    if(run !== speakRun) return;
+    if(k >= list.length){ S.speakingNow = false; clearHighlight(); paintDock(); return; }
+    var seg = list[k++], v = pickVoice();
+    var u = new SpeechSynthesisUtterance(seg.text);
     if(v) u.voice = v;
     u.lang = v ? v.lang : "en-US";
-    u.rate = S.rate;
-    u.onboundary = function(e){ if(typeof e.charIndex === "number") highlight(e.charIndex); };
-    u.onend = function(){ clearHighlight(); S.listened = true; paintDock(); };
-    u.onerror = function(){ clearHighlight(); paintDock(); };
-    S.listened = true;
+    u.rate = S.rate * 0.95;
+    u.pitch = 1;
+    u.onstart = function(){ if(run === speakRun && seg.ranges.length) setOn(seg.start); };
+    u.onboundary = function(e){ if(run === speakRun && typeof e.charIndex === "number") highlightIn(seg, e.charIndex); };
+    u.onend = function(){ if(run === speakRun) setTimeout(next, seg.pageEnd ? 650 : 220); };
+    u.onerror = function(){ if(run !== speakRun) return; S.speakingNow = false; clearHighlight(); paintDock(); };
     speechSynthesis.speak(u);
-    paintDock();
-  }, 120);
+  };
+  setTimeout(next, 120);
 }
-function speaking(){ return "speechSynthesis" in window && speechSynthesis.speaking; }
-function stopSpeak(){ if("speechSynthesis" in window) speechSynthesis.cancel(); clearHighlight(); paintDock(); }
+function speaking(){ return !!S.speakingNow; }
+function stopSpeak(){
+  speakRun++;
+  S.speakingNow = false;
+  if("speechSynthesis" in window) speechSynthesis.cancel();
+  clearHighlight();
+  paintDock();
+}
 
 /* ---------------- step 2: 녹음 ----------------
    MediaRecorder가 만드는 webm은 윈도우 기본 재생기와 카카오톡에서 열리지 않는다.
@@ -949,8 +1025,12 @@ function paintDock(){
       ac.innerHTML =
         (S.text ? '<button class="btn primary" id="aPlay">' + (speaking() ? "멈추기" : "지문 듣기") + "</button>" : "") +
         '<button class="btn' + (S.text ? "" : " primary") + '" id="aNext" style="margin-top:10px"' + (S.listened || !S.text ? "" : " disabled") + ">녹음하러 가기</button>" +
-        '<button class="linkbtn" id="aPick" style="margin:6px auto 0;display:block">내 기기의 음원 파일 열기</button>';
+        '<div style="display:flex;justify-content:center;gap:14px;margin-top:6px">' +
+          (S.text && englishVoices().length > 1 ? '<button class="linkbtn" id="aVoice">목소리 바꾸기 · ' + esc(voiceLabel(pickVoice())) + "</button>" : "") +
+          '<button class="linkbtn" id="aPick">내 기기의 음원 파일 열기</button>' +
+        "</div>";
       if($("aPlay")) $("aPlay").onclick = function(){ speaking() ? stopSpeak() : speak(); };
+      if($("aVoice")) $("aVoice").onclick = nextVoice;
       $("aPick").onclick = openLocal;
     }
     $("aNext").onclick = function(){ go(2); };
@@ -1192,7 +1272,10 @@ $("filePick").addEventListener("change", function(e){ loadLocal(e.target.files &
 $("fPick").addEventListener("change", function(e){ loadLocal(e.target.files && e.target.files[0]); e.target.value = ""; });
 
 /* voices load lazily in Chrome */
-if("speechSynthesis" in window){ speechSynthesis.onvoiceschanged = function(){}; speechSynthesis.getVoices(); }
+if("speechSynthesis" in window){
+  speechSynthesis.onvoiceschanged = function(){ if(S.step === 1 && !speaking()) paintDock(); };
+  speechSynthesis.getVoices();
+}
 
 /* 로고 파일이 저장소에 있으면 이미지, 없으면 글자 로고 */
 Array.prototype.forEach.call(document.querySelectorAll("[data-logo]"), function(img){
