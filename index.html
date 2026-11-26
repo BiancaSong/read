@@ -1191,16 +1191,19 @@ function apiGet(params){
 }
 function appBase(){ return location.href.split("#")[0]; }
 
-/* 명단은 하루 동안 폰에 저장해 두고 재사용 */
+/* 명단은 매번 시트에서 새로 받는다(반 이름·학생을 바꾸면 바로 반영).
+   서버가 응답하지 않을 때만 폰에 저장해 둔 지난 명단을 쓴다. */
 function getRoster(){
-  try{
-    var c = JSON.parse(localStorage.getItem("rr_roster") || "null");
-    if(c && c.at && Date.now() - c.at < 24*3600*1000 && c.classes) return Promise.resolve(c.classes);
-  }catch(e){}
   return apiGet({ roster:1 }).then(function(j){
     if(!j.ok) throw new Error(j.error || "roster");
     try{ localStorage.setItem("rr_roster", JSON.stringify({ at:Date.now(), classes:j.classes })); }catch(e){}
     return j.classes;
+  }).catch(function(err){
+    try{
+      var c = JSON.parse(localStorage.getItem("rr_roster") || "null");
+      if(c && c.classes) return c.classes;
+    }catch(e){}
+    throw err;
   });
 }
 function savedStudent(){
