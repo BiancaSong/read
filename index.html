@@ -405,7 +405,7 @@ function renderPassage(text){
     if(!page.trim()) return;
     var lines = splitLines(page);
     /* 문장부호 없이 짧은 줄 = 소제목(예: "Step 1: Draw the Plan", "Marbles"). 굵게, 아래 본문과 붙여서 보여 준다. */
-    var head = !/[.!?]/.test(page) && page.trim().split(/\s+/).length <= 6;
+    var head = !/[.!?]/.test(page) && page.trim().split(/\s+/).length <= 8;
     html += head ? '<div class="pg hd">' : '<div class="pg">';
     lines.forEach(function(line, li){
       var words = line.split(" "), ranges = [], pos = 0, start = wi;
@@ -1386,7 +1386,8 @@ function boot(){
   var h = decodeURIComponent(location.hash.replace(/^#/, "")).trim();
   var m;
   if((m = h.match(/^qr=(.+)$/i))) return openQr(m[1].toUpperCase());
-  if(/^[A-Z0-9]+-[A-Z0-9]+-[0-9]+$/i.test(h)) return loadById(h.toUpperCase());
+  /* 긴 책은 부분(Part)별 번호: H1-B5-01-02 = 원서5 1번 책의 Part 2 */
+  if(/^[A-Z0-9]+-[A-Z0-9]+-[0-9]+(-[0-9]+)?$/i.test(h)) return loadById(h.toUpperCase());
   openHelp();
 }
 boot();
